@@ -1,0 +1,68 @@
+---
+auto_deploy: true
+# Replace "context" with your cluster name from Release
+context: release-context
+# Replace "domain" with your domain from Release
+domain: release.example.com
+# Replace "repo_name" with your repo name
+repo_name: ritzarelease/terraform-flask-redis
+hostnames:
+- web: web-terraform-example-${env_id}.${domain}
+environment_templates:
+- name: ephemeral
+- name: permanent
+resources:
+  cpu:
+    limits: 1000m
+    requests: 100m
+  memory:
+    limits: 1Gi
+    requests: 100Mi
+  replicas: 1
+infrastructure:
+- name: terraform-redis
+  type: terraform
+  directory: "./infrastructure"
+services:
+- name: web
+  image: ritzarelease/terraform-flask-redis/web
+  build:
+    target: builder
+    context: app
+  has_repo: true
+  command:
+  - "/usr/local/bin/ssm-env"
+  - "-with-decryption"
+  args:
+  - python3
+  - app.py
+  ports:
+  - type: node_port
+    target_port: '8000'
+    port: '8000'
+    loadbalancer: false
+workflows:
+- name: setup
+  parallelize:
+  - step: setup-infrastructure
+    tasks:
+    - infrastructure.terraform-redis
+  - step: services-0
+    tasks:
+    - services.web
+- name: patch
+  parallelize:
+  - step: setup-infrastructure
+    tasks:
+    - infrastructure.terraform-redis
+  - step: services-0
+    tasks:
+    - services.web
+- name: teardown
+  parallelize:
+  - step: destroy-infrastructure
+    tasks:
+    - infrastructure.terraform-redis
+  - step: remove-environment
+    tasks:
+    - release.remove_environment

@@ -1,0 +1,6 @@
+---
+defaults: []
+services:
+  web: []
+mapping:
+  REDIS_HOST: ssm:///${RELEASE_ENV_ID}/redis/address
